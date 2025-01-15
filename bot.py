@@ -1,21 +1,22 @@
-import telebot
+from flask import Flask, request
+import telegram
 
-# Bot-Token
+# Flask-Server erstellen
+app = Flask(__name__)
+
+# Telegram-Bot initialisieren
 BOT_TOKEN = "7733972368:AAFl4oyP5S6Zea13GePBgG0ZLwv539qU0kA"
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telegram.Bot(token=BOT_TOKEN)
 
-# Start-Befehl
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "Hallo! Ich bin dein persönlicher Assistent. Wie kann ich dir helfen?")
+@app.route("/", methods=["POST"])
+def webhook():
+    update = telegram.Update.de_json(request.get_json(force=True), bot)
+    chat_id = update.message.chat.id
+    message = update.message.text
 
-# Allgemeine Antworten
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    bot.reply_to(message, f"Du hast gesagt: {message.text}")
+    # Antwort senden
+    bot.sendMessage(chat_id=chat_id, text=f"Du hast gesagt: {message}")
+    return "ok"
 
-# Starte den Bot
 if __name__ == "__main__":
-    print("Bot läuft...")
-    bot.polling()
-  
+    app.run(port=5000)

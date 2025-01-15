@@ -8,22 +8,17 @@ app = Flask(__name__)
 BOT_TOKEN = "7733972368:AAFl4oyP5S6Zea13GePBgG0ZLwv539qU0kA"
 bot = telegram.Bot(token=BOT_TOKEN)
 
-@app.route("/", methods=["POST"])
+@app.route("/", methods=["GET", "POST"])
 def webhook():
-    try:
-        # Telegram-Update empfangen und parsen
-        json_data = request.get_json(force=True)
-        update = telegram.Update.de_json(json_data, bot)
-
-        # Chat-ID und Nachricht extrahieren
-        chat_id = update.message.chat.id
-        message = update.message.text
-
-        # Antwort senden
-        bot.sendMessage(chat_id=chat_id, text=f"Du hast gesagt: {message}")
-        print(f"Nachricht gesendet: {message} an {chat_id}")
-    except Exception as e:
-        print(f"Fehler: {e}")  # Fehler in den Logs anzeigen
+    if request.method == "POST":
+        try:
+            update = telegram.Update.de_json(request.get_json(force=True), bot)
+            chat_id = update.message.chat.id
+            message = update.message.text
+            # Antwort senden
+            bot.sendMessage(chat_id=chat_id, text=f"Du hast gesagt: {message}")
+        except Exception as e:
+            print(f"Fehler: {e}")  # Fehler in den Logs anzeigen
     return "ok"
 
 if __name__ == "__main__":

@@ -1,16 +1,15 @@
 from flask import Flask, request
 import telegram
 import json
-import os
 
 # Flask-Server erstellen
 app = Flask(__name__)
 
 # Telegram-Bot initialisieren
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "DEIN_TELEGRAM_BOT_TOKEN")
+BOT_TOKEN = "7733972368:AAFl4oyP5S6Zea13GePBgG0ZLwv539qU0kA"
 bot = telegram.Bot(token=BOT_TOKEN)
 
-# Erinnerungen laden und speichern
+# Speicher für Erinnerungen (vorerst in einer Datei)
 def load_memory():
     try:
         with open("memory.json", "r") as file:
@@ -20,44 +19,33 @@ def load_memory():
 
 def save_memory(memory):
     with open("memory.json", "w") as file:
-        json.dump(memory, file, indent=4)
+        json.dump(memory, file)
 
 memory = load_memory()
 
 @app.route("/", methods=["POST"])
 def webhook():
     try:
-        # Telegram-Update verarbeiten
         update = telegram.Update.de_json(request.get_json(force=True), bot)
-        chat_id = str(update.message.chat.id)  # ID als String für JSON-Kompatibilität
-        message = update.message.text.strip()
+        chat_id = update.message.chat.id
+        message = update.message.text
 
-        # **Kommandos**
-        if message.lower().startswith("erinnere dich an:"):
-            key = message.replace("erinnere dich an:", "").strip()
-            memory[chat_id] = memory.get(chat_id, [])  # Sicherstellen, dass ein Speicher existiert
-            memory[chat_id].append(key)
+        # Erinnerungen speichern oder abrufen
+        if message.startswith("Erinnere dich an:"):
+            key = message.replace("Erinnere dich an:", "").strip()
+            memory[chat_id] = key
             save_memory(memory)
-            response = f"Nova hat sich das gemerkt: {key}"
-
-        elif message.lower() == "was weißt du über mich?":
-            user_memory = memory.get(chat_id, [])
-            if user_memory:
-                response = "Das weiß Nova über dich:\n- " + "\n- ".join(user_memory)
-            else:
-                response = "Nova hat noch keine Erinnerungen über dich gespeichert."
-
+            bot.send_message(chat_id=chat_id, text=f"Ich habe mir das gemerkt: {key}")
+        elif message == "Was weißt du über mich?":
+            key = memory.get(chat_id, "Ich habe noch keine Erinnerungen für dich.")
+            bot.send_message(chat_id=chat_id, text=f"Ich weiß über dich: {key}")
         else:
-            response = f"Nova sagt: Du hast geschrieben: {message}"
-
-        # Antwort senden
-        bot.send_message(chat_id=chat_id, text=response)
+            bot.send_message(chat_id=chat_id, text=f"Du hast gesagt: {message}")
 
     except Exception as e:
         print(f"Fehler: {e}")
-        return f"Fehler: {e}", 500
-
-    return "ok", 200
+        return "Fehler", 500
+    return "ok"
 
 if __name__ == "__main__":
     app.run(port=5000)

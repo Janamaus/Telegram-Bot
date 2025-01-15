@@ -1,26 +1,30 @@
-from flask import Flask, request
+from aiohttp import web
 import telegram
-import asyncio
+from telegram.ext import Application, MessageHandler, filters
 
-# Flask-Server erstellen
-app = Flask(__name__)
+BOT_TOKEN = "7733972368:AAFl4oyP5S6Zea13GePBgG0ZLwv539qU0kA"
 
 # Telegram-Bot initialisieren
-BOT_TOKEN = "7733972368:AAFl4oyP5S6Zea13GePBgG0ZLwv539qU0kA"
-bot = telegram.Bot(token=BOT_TOKEN)
+application = Application.builder().token(BOT_TOKEN).build()
 
-@app.route("/", methods=["POST"])
-def webhook():
-    try:
-        update = telegram.Update.de_json(request.get_json(force=True), bot)
-        chat_id = update.message.chat.id
-        message = update.message.text
+async def handle(request):
+    # JSON-Daten vom Telegram-Webhook einlesen
+    data = await request.json()
+    update = telegram.Update.de_json(data, application.bot)
+    await application.update_queue.put(update)
+    return web.Response(text="ok")
 
-        # Antwort senden (asynchron)
-        asyncio.run(bot.send_message(chat_id=chat_id, text=f"Du hast gesagt: {message}"))
-    except Exception as e:
-        print(f"Fehler: {e}")  # Fehler in den Logs anzeigen
-    return "ok"
+# Handler hinzufügen
+async def echo(update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat.id
+    message = update.message.text
+    await context.bot.send_message(chat_id=chat_id, text=f"Du hast gesagt: {message}")
+
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+# Webserver für Telegram-Webhook einrichten
+app = web.Application()
+app.router.add_post("/", handle)
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    web.run_app(app, port=5000)
